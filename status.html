@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PickPayGo - Status & Shop</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+            margin: 0;
+            overflow: hidden; 
+        }
+
+        h2 { color: #333; }
+
+        .nav-box {
+            background: white;
+            padding: 5px;
+            border-radius: 30px;
+            display: inline-flex;
+            z-index: 100;
+        }
+
+        button {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+            background: transparent;
+            color: #555;
+        }
+
+        button:disabled {
+            background: #2563eb;
+            color: white;
+            cursor: default;
+        }
+
+        .content {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: none; 
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        #delivery-box {
+            background-color: white;
+            color: black;
+            overflow-y: auto;
+            padding: 40px 20px 100px 20px;
+        }
+
+        .product-card {
+            border-bottom: 1px solid #ddd;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .prod-img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-right: 15px;
+        }
+
+        .category-header {
+            background: #2563eb;
+            color: white;
+            padding: 8px 15px;
+            text-align: left;
+            width: 100%;
+            max-width: 500px;
+            margin-top: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        #cart-view {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            z-index: 500;
+            display: none;
+            flex-direction: column;
+            padding: 40px 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .action-btn {
+            margin-top: 20px;
+            background-color: #2563eb;
+            color: white;
+            padding: 12px 25px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #cart-summary {
+            position: fixed;
+            bottom: 70px;
+            background: #10b981;
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            width: 85%;
+            max-width: 400px;
+            display: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            z-index: 400;
+            cursor: pointer;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 15px;
+            width: 100%;
+            text-align: center;
+            z-index: 300;
+            background: #f4f4f9;
+            padding: 5px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <h2 id="main-title">Select Service</h2>
+
+    <div class="nav-box" id="nav-menu">
+        <button id="btn1" onclick="setService('Delivery')">Delivery</button>
+        <button id="btn2" onclick="setService('PickPayGo')">PickPayGo</button>
+    </div>
+
+    <div id="delivery-box" class="content">
+        <h1>Delivery Menu</h1>
+        <div id="product-list" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <p>Fetching inventory...</p>
+        </div>
+        <button class="action-btn" style="background: black; margin-top: 30px;" onclick="closeAll()">Go Back</button>
+    </div>
+
+    <div id="cart-view">
+        <h1>Your Shopping Cart</h1>
+        <div id="cart-items-list" style="width: 100%;"></div>
+        <hr style="width: 100%;">
+        <h3>Total: ₹<span id="cart-view-total">0</span></h3>
+        <button class="action-btn" onclick="document.getElementById('cart-view').style.display='none'">Continue Shopping</button>
+        <button class="action-btn" style="background: #10b981;">Place Order</button>
+    </div>
+
+    <div id="cart-summary" onclick="showCartDetails()">
+        🛒 <b>View Cart:</b> <span id="cart-count">0</span> items | <b>Total:</b> ₹<span id="cart-total">0</span>
+    </div>
+
+    <div class="footer" id="footer-status">
+        <p>System Status: <b id="st">Checking...</b></p>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        // Change this to your ngrok URL for public use: "https://xxxx.ngrok-free.dev"
+        const BASE_URL = "https://paulita-unmiasmal-unsorely.ngrok-free.dev"; 
+        
+        const NGROK_HEADERS = {
+            "ngrok-skip-browser-warning": "69420"
+        };
+
+        let cart = [];
+
+        function setService(type) {
+            const isDel = (type === 'Delivery');
+            document.getElementById("nav-menu").style.display = "none";
+            document.getElementById("main-title").style.display = "none";
+            document.getElementById("delivery-box").style.display = isDel ? "flex" : "none";
+            if (isDel) loadProducts();
+        }
+
+        async function loadProducts() {
+            try {
+                const response = await fetch(`${BASE_URL}/data`, { headers: NGROK_HEADERS });
+                const products = await response.json();
+                
+                products.sort((a, b) => a.category.localeCompare(b.category));
+                
+                const container = document.getElementById("product-list");
+                container.innerHTML = "";
+                let currentCategory = "";
+
+                products.forEach(p => {
+                    if (p.category !== currentCategory) {
+                        currentCategory = p.category;
+                        container.innerHTML += `<div class="category-header">${currentCategory}</div>`;
+                    }
+
+                    container.innerHTML += `
+                        <div class="product-card">
+                            <div style="display: flex; align-items: center;">
+                                <img src="${p.img}" class="prod-img" onerror="this.src='https://via.placeholder.com/60?text=No+Img'">
+                                <div style="text-align: left;">
+                                    <b>${p.name}</b><br>
+                                    <span style="color:#666; font-size:14px;">₹${p.price} | Stock: ${p.stock}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <input type="number" id="qty-${p.id}" value="1" min="1" max="${p.stock}" style="width: 45px; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+                                <button onclick="addToCart(${p.id}, '${p.name}', ${p.price})" 
+                                        style="background:#2563eb; color:white; padding:6px 12px; border:none; border-radius:5px; margin-left:5px;">
+                                    Add
+                                </button>
+                            </div>
+                        </div>`;
+                });
+            } catch (e) {
+                document.getElementById("product-list").innerHTML = "<p style='color:red;'>Connection Error: Check if Java Server is running.</p>";
+            }
+        }
+
+        function addToCart(id, name, price) {
+            const qty = parseInt(document.getElementById(`qty-${id}`).value);
+            const existing = cart.find(item => item.id === id);
+            if(existing) {
+                existing.qty += qty;
+            } else {
+                cart.push({ id, name, price, qty });
+            }
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const count = cart.reduce((sum, item) => sum + item.qty, 0);
+            const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            
+            const summary = document.getElementById("cart-summary");
+            summary.style.display = count > 0 ? "block" : "none";
+            document.getElementById("cart-count").innerText = count;
+            document.getElementById("cart-total").innerText = total;
+        }
+
+        function showCartDetails() {
+            const list = document.getElementById("cart-items-list");
+            const totalSpan = document.getElementById("cart-view-total");
+            list.innerHTML = "";
+            let total = 0;
+
+            cart.forEach(item => {
+                const itemTotal = item.price * item.qty;
+                total += itemTotal;
+                list.innerHTML += `
+                    <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;">
+                        <span>${item.name} (x${item.qty})</span>
+                        <span>₹${itemTotal}</span>
+                    </div>`;
+            });
+
+            totalSpan.innerText = total;
+            document.getElementById("cart-view").style.display = "flex";
+        }
+
+        function closeAll() {
+            document.getElementById("delivery-box").style.display = "none";
+            document.getElementById("nav-menu").style.display = "inline-flex";
+            document.getElementById("main-title").style.display = "block";
+            document.getElementById("cart-summary").style.display = "none";
+            cart = [];
+            updateCartUI();
+        }
+
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${BASE_URL}/status`, { headers: NGROK_HEADERS });
+                const txt = await response.text();
+                const statusLabel = document.getElementById("st");
+                if (txt.trim() === "CONNECTED") {
+                    statusLabel.innerText = "Connected";
+                    statusLabel.style.color = "green";
+                } else {
+                    statusLabel.innerText = "DB Error";
+                    statusLabel.style.color = "orange";
+                }
+            } catch (e) {
+                document.getElementById("st").innerText = "Offline";
+                document.getElementById("st").style.color = "red";
+            }
+        }
+
+        checkStatus();
+        setInterval(checkStatus, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartStore Shop</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; background: #f1f5f9; padding: 20px; margin: 0; }
+        .cat-tag { background: #2563eb; color: white; padding: 6px 15px; border-radius: 6px; display: inline-block; margin-bottom: 15px; font-weight: bold; font-size: 14px; }
+        .products { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 35px; justify-content: center; }
+        .card { background: white; padding: 15px; border-radius: 10px; text-align: center; width: 140px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .card img { width: 100%; height: 90px; object-fit: contain; border-radius: 5px; }
+        .card h4 { margin: 10px 0 5px 0; font-size: 16px; }
+        .card p { margin: 0 0 10px 0; color: #059669; font-weight: bold; }
+        .popup { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .popup-content { background: white; padding: 25px; border-radius: 12px; text-align: center; width: 300px; box-sizing: border-box; }
+        .qty-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #ddd; background: white; font-size: 20px; cursor: pointer; }
+        .select-btn { width:100%; background:#2563eb; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold; }
+    </style>
+</head>
+<body>
+    <h2 style="text-align:center;">🛒 SmartStore Shop</h2>
+    <div id="store"><p style="text-align:center;">Connecting to server...</p></div>
+
+    <div class="popup" id="popup">
+        <div class="popup-content">
+            <h3 id="pname"></h3>
+            <img id="pimg" style="width: 120px; margin-bottom: 10px;">
+            <div style="margin: 15px; display: flex; align-items: center; justify-content: center; gap: 20px;">
+                <button class="qty-btn" onclick="changeQty(-1)">-</button>
+                <span id="displayQty" style="font-size: 22px; font-weight: bold;">1</span>
+                <button class="qty-btn" onclick="changeQty(1)">+</button>
+            </div>
+            <button class="select-btn" onclick="showBarcode()">Generate Barcode</button>
+            
+            <div id="barcodeArea" style="display:none; margin-top:15px; border-top: 1px dashed #ccc; padding-top: 15px;">
+                <p style="font-weight:bold;">Final Qty: <span id="finalQty"></span></p>
+                <img id="pbarcode" style="width:100%; max-width:200px;">
+                <p style="font-size:12px; color:#666;">Scan at checkout</p>
+            </div>
+            <button onclick="closePop()" style="margin-top:15px; background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold;">Close</button>
+        </div>
+    </div>
+
+<script>
+// --- CONFIGURATION ---
+// Change this to your ngrok URL for GitHub deployment: "https://xxxx.ngrok-free.dev"
+const BASE_URL = "http://localhost:9091"; 
+
+const NGROK_HEADERS = {
+    "ngrok-skip-browser-warning": "69420"
+};
+
+let allProducts = [], selected, currentQty = 1;
+
+async function load() {
+    try {
+        const response = await fetch(`${BASE_URL}/data`, { headers: NGROK_HEADERS });
+        allProducts = await response.json();
+        
+        const groups = allProducts.reduce((acc, p) => {
+            const cat = (p.category && p.category !== "null" && p.category !== "") ? p.category : "General";
+            acc[cat] = acc[cat] || [];
+            acc[cat].push(p);
+            return acc;
+        }, {});
+
+        document.getElementById("store").innerHTML = Object.keys(groups).map(cat => `
+            <div style="width:100%; max-width:600px; margin:auto;">
+                <div class="cat-tag">${cat.toUpperCase()}</div>
+                <div class="products">
+                    ${groups[cat].map(p => `
+                        <div class="card">
+                            <img src="${p.img}" onerror="this.src='https://via.placeholder.com/110?text=No+Image'">
+                            <h4>${p.name}</h4>
+                            <p>₹${p.price}</p>
+                            <button class="select-btn" onclick="openPop(${p.id})">Select</button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    } catch (err) { 
+        document.getElementById("store").innerHTML = `<p style="color:red; text-align:center;">❌ Error: Server Offline<br><small>${err.message}</small></p>`;
+    }
+}
+
+function openPop(id) {
+    selected = allProducts.find(p => p.id === id);
+    document.getElementById("pname").innerText = selected.name;
+    document.getElementById("pimg").src = selected.img;
+    currentQty = 1; 
+    document.getElementById("displayQty").innerText = 1;
+    document.getElementById("barcodeArea").style.display = "none";
+    document.getElementById("popup").style.display = "flex";
+}
+
+function changeQty(v) { 
+    if (currentQty + v >= 1) { 
+        currentQty += v; 
+        document.getElementById("displayQty").innerText = currentQty; 
+    } 
+}
+
+function showBarcode() { 
+    const barcodeImg = document.getElementById("pbarcode");
+    barcodeImg.src = selected.barcode; 
+    document.getElementById("finalQty").innerText = currentQty; 
+    document.getElementById("barcodeArea").style.display = "block"; 
+}
+
+function closePop() { 
+    document.getElementById("popup").style.display = "none"; 
+}
+
+load();
+</script>
+</body>
+</html>

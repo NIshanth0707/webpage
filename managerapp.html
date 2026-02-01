@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manager Dashboard</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 550px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .section { background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-add { background: #22c55e; color: white; }
+        .btn-upd { background: #3b82f6; color: white; }
+        .btn-del { background: #ef4444; color: white; }
+        .btn:active { transform: scale(0.98); }
+        #status { text-align: center; font-weight: bold; margin-top: 10px; padding: 10px; border-radius: 5px; }
+        .home-btn { display: block; text-align: center; margin-top: 20px; color: #64748b; text-decoration: none; font-size: 14px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>🛠️ Inventory Manager</h2>
+    
+    <div class="section">
+        <h3>🗑️ Delete Product</h3>
+        <input type="number" id="del_id" placeholder="ID to Delete">
+        <button class="btn btn-del" onclick="manage('DELETE')">Delete Product</button>
+    </div>
+
+    <div class="section">
+        <h3>➕ Add / 🔄 Update Details</h3>
+        <input type="number" id="id" placeholder="ID">
+        <input type="text" id="name" placeholder="Name">
+        <input type="number" step="0.01" id="price" placeholder="Price">
+        <input type="number" id="stock" placeholder="Stock">
+        <input type="text" id="cat" placeholder="Category">
+        <input type="text" id="img" placeholder="Image Path">
+        <input type="text" id="bar" placeholder="Barcode Path">
+        
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-add" onclick="manage('ADD')">Add New</button>
+            <button class="btn btn-upd" onclick="manage('UPDATE')">Update Existing</button>
+        </div>
+    </div>
+    
+    <div id="status"></div>
+    <a href="index.html" class="home-btn">⬅️ Back to Shop</a>
+</div>
+
+<script>
+    // --- CONFIGURATION ---
+    // For Local testing: Use "http://localhost:9091"
+    // For Public/Phone: Use your ngrok link "https://xxxx.ngrok-free.dev"
+    const BASE_URL = "https://paulita-unmiasmal-unsorely.ngrok-free.dev";
+
+    async function manage(action) {
+        const status = document.getElementById("status");
+        status.innerText = "⏳ Processing...";
+        status.style.color = "blue";
+
+        let payload = (action === 'DELETE') 
+            ? `DELETE|${document.getElementById('del_id').value}` 
+            : `${action}|${document.getElementById('id').value}|${document.getElementById('name').value}|${document.getElementById('price').value}|${document.getElementById('stock').value}|${document.getElementById('cat').value}|${document.getElementById('img').value}|${document.getElementById('bar').value}`;
+
+        try {
+            const response = await fetch(`${BASE_URL}/manage`, { 
+                method: "POST", 
+                body: payload,
+                headers: {
+                    // Necessary to bypass ngrok warning screen
+                    "ngrok-skip-browser-warning": "69420"
+                }
+            });
+
+            const resultText = await response.text();
+            status.innerText = resultText;
+            status.style.color = resultText.includes("✅") ? "green" : "red";
+            
+            // Clear inputs if delete was successful
+            if(action === 'DELETE' && resultText.includes("✅")) document.getElementById('del_id').value = "";
+
+        } catch (err) { 
+            status.innerText = "❌ Error Connecting to Java Server"; 
+            status.style.color = "red";
+        }
+    }
+</script>
+</body>
+</html>
